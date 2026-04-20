@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # WebForge Agent Setup Script
-# Checks for required dependencies and guides installation
+# Installs dependencies and verifies configuration
 
 set -e
 
-echo "🔥 WebForge Agent Setup"
+echo "WebForge Agent Setup"
 echo "======================="
 echo ""
 
@@ -13,56 +13,99 @@ echo ""
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Track missing requirements
+# Track issues
 MISSING=0
-
-# Track specific issues
 ISSUE_GIT=0
 ISSUE_GH=0
+ISSUE_NODE=0
+ISSUE_PYTHON=0
 ISSUE_ENV=0
 ISSUE_GITHUB_TOKEN=0
 
-# Function to check command
-check_command() {
-    if command -v "$1" &> /dev/null; then
-        echo -e "${GREEN}✓${NC} $1 is installed"
-        return 0
-    else
-        echo -e "${RED}✗${NC} $1 is NOT installed"
-        if [ "$1" = "git" ]; then
-            ISSUE_GIT=1
-        elif [ "$1" = "gh" ]; then
-            ISSUE_GH=1
-        fi
-        return 1
-    fi
-}
-
-# Function to check file
-check_file() {
-    if [ -f "$1" ]; then
-        echo -e "${GREEN}✓${NC} $2 exists"
-        return 0
-    else
-        echo -e "${YELLOW}⚠${NC} $2 not found ($1)"
-        MISSING=$((MISSING + 1))
-        return 1
-    fi
-}
-
-echo "Checking Requirements..."
+echo "Checking Dependencies..."
 echo "------------------------"
 
-# Check system dependencies
-check_command "git" || echo "   Install from: https://git-scm.com/"
-check_command "gh" || echo "   Run: brew install gh (macOS) or visit https://cli.github.com/ (Linux)"
-if command -v node &> /dev/null; then
-    echo -e "${GREEN}✓${NC} Node.js is installed"
+# Check Git
+if command -v git &> /dev/null; then
+    echo -e "${GREEN}[OK]${NC} Git is installed"
 else
-    echo -e "${YELLOW}⚠${NC} Node.js not found - optional for running websites"
-    echo "   Install from: https://nodejs.org/"
+    echo -e "${RED}[X]${NC} Git is NOT installed"
+    echo "     Install from: https://git-scm.com/"
+    ISSUE_GIT=1
+fi
+
+# Check GitHub CLI
+if command -v gh &> /dev/null; then
+    echo -e "${GREEN}[OK]${NC} GitHub CLI is installed"
+else
+    echo -e "${RED}[X]${NC} GitHub CLI is NOT installed"
+    echo "     macOS: brew install gh"
+    echo "     Linux: https://cli.github.com/"
+    ISSUE_GH=1
+fi
+
+# Check Node.js
+if command -v node &> /dev/null; then
+    echo -e "${GREEN}[OK]${NC} Node.js is installed"
+else
+    echo -e "${RED}[X]${NC} Node.js is NOT installed"
+    echo "     Install from: https://nodejs.org/"
+    ISSUE_NODE=1
+fi
+
+# Check Python
+PY_CMD=""
+if command -v python3 &> /dev/null; then
+    PY_CMD="python3"
+elif command -v python &> /dev/null; then
+    PY_CMD="python"
+fi
+
+if [ -n "$PY_CMD" ]; then
+    echo -e "${GREEN}[OK]${NC} Python is installed ($($PY_CMD --version 2>&1))"
+else
+    echo -e "${RED}[X]${NC} Python is NOT installed"
+    echo "     Install from: https://python.org/"
+    ISSUE_PYTHON=1
+fi
+
+echo ""
+echo "Installing Python Dependencies..."
+echo "----------------------------------"
+
+if [ $ISSUE_PYTHON -eq 0 ]; then
+    PIP_CMD="pip3"
+    command -v pip3 &> /dev/null || PIP_CMD="pip"
+
+    echo "Installing playwright, beautifulsoup4, aiohttp, google-genai, Pillow..."
+    $PIP_CMD install playwright beautifulsoup4 aiohttp google-genai Pillow 2>/dev/null && \
+        echo -e "${GREEN}[OK]${NC} Python packages installed" || \
+        echo -e "${YELLOW}[!]${NC} Failed — run manually: $PIP_CMD install playwright beautifulsoup4 aiohttp google-genai Pillow"
+
+    echo "Installing Playwright Chromium browser..."
+    playwright install chromium 2>/dev/null && \
+        echo -e "${GREEN}[OK]${NC} Playwright Chromium installed" || \
+        echo -e "${YELLOW}[!]${NC} Failed — run manually: playwright install chromium"
+else
+    echo -e "${YELLOW}[!]${NC} Skipping Python packages — Python not found"
+fi
+
+echo ""
+echo "Installing Node Dependencies..."
+echo "--------------------------------"
+
+if [ $ISSUE_NODE -eq 0 ]; then
+    echo "Installing sharp (image processing)..."
+    npm list -g sharp &>/dev/null || npm install -g sharp &>/dev/null
+    echo -e "${GREEN}[OK]${NC} sharp ready"
+
+    echo "Installing serve (local preview)..."
+    npm list -g serve &>/dev/null || npm install -g serve &>/dev/null
+    echo -e "${GREEN}[OK]${NC} serve ready"
+else
+    echo -e "${YELLOW}[!]${NC} Skipping Node packages — Node.js not found"
 fi
 
 echo ""
@@ -71,34 +114,36 @@ echo "-------------------------"
 
 # Check .env file
 if [ -f ".env" ]; then
-    echo -e "${GREEN}✓${NC} .env file exists"
+    echo -e "${GREEN}[OK]${NC} .env file exists"
 
-    # Check if GITHUB_TOKEN is set and has a value (not empty, not placeholder)
+    # Check GITHUB_TOKEN
     GITHUB_TOKEN_VALUE=$(grep "^GITHUB_TOKEN=" .env 2>/dev/null | cut -d'=' -f2)
     if [ -n "$GITHUB_TOKEN_VALUE" ] && [ "$GITHUB_TOKEN_VALUE" != "ghp_your_token_here" ]; then
-        echo -e "${GREEN}✓${NC} GITHUB_TOKEN is set"
+        echo -e "${GREEN}[OK]${NC} GITHUB_TOKEN is set"
     else
-        echo -e "${YELLOW}⚠${NC} GITHUB_TOKEN not set or empty"
-        echo "   Get your token at: https://github.com/settings/tokens"
+        echo -e "${YELLOW}[!]${NC} GITHUB_TOKEN not set or empty"
+        echo "     Get your token at: https://github.com/settings/tokens"
         ISSUE_GITHUB_TOKEN=1
     fi
 
-    # Check if FAL_KEY is set (optional, not the placeholder)
-    FAL_KEY_VALUE=$(grep "^FAL_KEY=" .env 2>/dev/null | cut -d'=' -f2)
-    if [ -n "$FAL_KEY_VALUE" ] && [ "$FAL_KEY_VALUE" != "fal_your_key_here" ]; then
-        echo -e "${GREEN}✓${NC} FAL_KEY is set - image generation enabled"
+    # Check NANOBANANA_GEMINI_API_KEY or GEMINI_API_KEY
+    GEMINI_KEY=$(grep -E "^NANOBANANA_GEMINI_API_KEY=|^GEMINI_API_KEY=" .env 2>/dev/null | head -1 | cut -d'=' -f2)
+    if [ -n "$GEMINI_KEY" ] && [ "$GEMINI_KEY" != "your_gemini_api_key_here" ]; then
+        echo -e "${GREEN}[OK]${NC} GEMINI_API_KEY is set — AI image generation enabled"
     else
-        echo -e "${YELLOW}⚠${NC} FAL_KEY not set - optional for image generation"
-        echo "   Get your key at: https://fal.ai/dashboard/keys"
+        echo -e "${YELLOW}[!]${NC} GEMINI_API_KEY not set — needed for /rebrand-project image generation"
+        echo "     Add to .env: NANOBANANA_GEMINI_API_KEY=your_key_here"
     fi
 else
-    echo -e "${YELLOW}⚠${NC} .env file not found"
-    echo "   Creating from .env.example..."
-    cp .env.example .env
-    echo -e "${GREEN}✓${NC} Created .env file"
-    echo "   Please edit .env and add your tokens:"
-    echo "   - GITHUB_TOKEN - required"
-    echo "   - FAL_KEY - optional"
+    echo -e "${YELLOW}[!]${NC} .env file not found"
+    if [ -f ".env.example" ]; then
+        echo "     Creating from .env.example..."
+        cp .env.example .env
+        echo -e "${GREEN}[OK]${NC} Created .env file"
+    fi
+    echo "     Please edit .env and add your tokens:"
+    echo "     - GITHUB_TOKEN — required"
+    echo "     - NANOBANANA_GEMINI_API_KEY — required for image generation"
     ISSUE_ENV=1
 fi
 
@@ -106,101 +151,43 @@ echo ""
 echo "Checking Skills..."
 echo "------------------"
 
-# Check if skills exist
-if [ -f ".claude/skills/webforge/SKILL.md" ]; then
-    echo -e "${GREEN}✓${NC} WebForge skill exists"
-else
-    echo -e "${RED}✗${NC} WebForge skill not found - please reinstall from GitHub"
-fi
-
-if [ -f ".claude/skills/webforge-image-gen/SKILL.md" ]; then
-    echo -e "${GREEN}✓${NC} Image generation skill exists"
-else
-    echo -e "${YELLOW}⚠${NC} Image generation skill not found - optional for Claude"
-fi
-
-# Check Fal skills
-if [ -d "skills/fal" ] && [ -f "skills/fal/skills/claude.ai/fal-generate/scripts/generate.sh" ]; then
-    echo -e "${GREEN}✓${NC} Fal.ai skills are installed"
-else
-    echo -e "${YELLOW}⚠${NC} Fal.ai skills not found, cloning..."
-    echo ""
-    echo "📦 Downloading Fal.ai skills..."
-    echo "   This may take a few minutes..."
-
-    # Remove incomplete Fal skills if exists
-    if [ -d "skills/fal" ]; then
-        rm -rf skills/fal
-    fi
-
-    # Clone Fal skills
-    if git clone https://github.com/fal-ai-community/skills.git skills/fal > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Fal.ai skills installed"
-    else
-        echo -e "${RED}✗${NC} Failed to download Fal.ai skills - check your internet connection"
-    fi
-fi
-
-echo ""
-echo "Checking Claude..."
-echo "------------------"
-
-# Check if Claude Desktop is running
-if pgrep -x "Claude" > /dev/null || pgrep -x "claude" > /dev/null; then
-    echo -e "${GREEN}✓${NC} Claude Desktop is running"
-else
-    echo -e "${YELLOW}⚠${NC} Claude Desktop may not be running"
-    echo "   Make sure Claude Desktop or Claude Code is installed and running"
-fi
+[ -f ".claude/skills/new-project/SKILL.md" ] && echo -e "${GREEN}[OK]${NC} new-project skill" || echo -e "${RED}[X]${NC} new-project skill not found"
+[ -f ".claude/skills/rebrand-project/SKILL.md" ] && echo -e "${GREEN}[OK]${NC} rebrand-project skill" || echo -e "${RED}[X]${NC} rebrand-project skill not found"
+[ -f ".claude/skills/modify-project/SKILL.md" ] && echo -e "${GREEN}[OK]${NC} modify-project skill" || echo -e "${RED}[X]${NC} modify-project skill not found"
+[ -f ".claude/skills/perfect-web-clone/SKILL.md" ] && echo -e "${GREEN}[OK]${NC} perfect-web-clone skill (extraction engine)" || echo -e "${RED}[X]${NC} perfect-web-clone skill not found"
 
 echo ""
 echo "======================="
 
 # Calculate total issues
-MISSING=$((ISSUE_GIT + ISSUE_GH + ISSUE_ENV + ISSUE_GITHUB_TOKEN))
+MISSING=$((ISSUE_GIT + ISSUE_GH + ISSUE_NODE + ISSUE_PYTHON + ISSUE_ENV + ISSUE_GITHUB_TOKEN))
 
 if [ $MISSING -eq 0 ]; then
     echo ""
-    echo -e "${GREEN}✓ All checks passed!${NC}"
+    echo -e "${GREEN}[OK] All checks passed!${NC}"
     echo ""
     echo "WebForge is ready to use!"
     echo ""
-    echo "To start:"
-    echo "1. Open Claude Desktop/Code"
-    echo "2. Navigate to this folder"
-    echo "3. Type: start"
-    echo "   or: /webforge"
+    echo "Commands:"
+    echo "  /new-project       - Clone a website"
+    echo "  /rebrand-project   - Rebrand with PDP content"
+    echo "  /modify-project    - Edit a project"
+    echo "  /get-projects      - List all projects"
+    echo "  /delete-project    - Delete a project"
     echo ""
     exit 0
 fi
 
 echo ""
-echo -e "${RED}✗ Found $MISSING issue(s) that need to be fixed:${NC}"
+echo -e "${RED}[X] Found $MISSING issue(s) that need to be fixed:${NC}"
 echo ""
-echo "Summary of issues:"
-echo "------------------"
 
-# List specific issues
-if [ $ISSUE_GIT -eq 1 ]; then
-    echo -e "  ${RED}✗${NC} Git is NOT installed"
-    echo "     → Install from: https://git-scm.com/"
-fi
-
-if [ $ISSUE_GH -eq 1 ]; then
-    echo -e "  ${RED}✗${NC} GitHub CLI is NOT installed"
-    echo "     → Run: brew install gh (macOS) or visit https://cli.github.com/ (Linux)"
-fi
-
-if [ $ISSUE_ENV -eq 1 ]; then
-    echo -e "  ${RED}✗${NC} .env file not found or incomplete"
-    echo "     → Edit .env and add your tokens"
-fi
-
-if [ $ISSUE_GITHUB_TOKEN -eq 1 ]; then
-    echo -e "  ${RED}✗${NC} GITHUB_TOKEN not set"
-    echo "     → Get token at: https://github.com/settings/tokens"
-    echo "     → Add to .env: GITHUB_TOKEN=your_token_here"
-fi
+[ $ISSUE_GIT -eq 1 ] && echo "  [X] Git — Install from: https://git-scm.com/"
+[ $ISSUE_GH -eq 1 ] && echo "  [X] GitHub CLI — macOS: brew install gh / Linux: https://cli.github.com/"
+[ $ISSUE_NODE -eq 1 ] && echo "  [X] Node.js — Install from: https://nodejs.org/"
+[ $ISSUE_PYTHON -eq 1 ] && echo "  [X] Python — Install from: https://python.org/"
+[ $ISSUE_ENV -eq 1 ] && echo "  [X] .env file — Create and add your tokens"
+[ $ISSUE_GITHUB_TOKEN -eq 1 ] && echo "  [X] GITHUB_TOKEN — Get at: https://github.com/settings/tokens"
 
 echo ""
 echo "After fixing the issues, run ./setup.sh again."

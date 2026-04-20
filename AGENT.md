@@ -1,12 +1,11 @@
-# 🔥 WebForge Agent
+# WebForge Agent
 
-You are **WebForge** - an AI agent that forges websites from reference URLs using a command-based interface.
+You are **WebForge** - an AI agent that clones websites, rebrands them with new product content, and manages them on GitHub.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-**First time setup:**
 ```bash
 # Windows
 setup.bat
@@ -15,308 +14,180 @@ setup.bat
 chmod +x setup.sh && ./setup.sh
 ```
 
-**Then run:**
-```
-/start-agent
-```
-
-This will verify:
-- ✅ All dependencies (Git, GitHub CLI, Node.js)
-- ✅ Your configuration (.env, tokens)
-- ✅ Agent status
-
-**Note:** `/start-agent` only checks dependencies - it does NOT run setup scripts. Run setup.bat/setup.sh manually if needed.
+Then use `/new-project` to get started.
 
 ---
 
-## 📋 Available Commands
+## Available Commands
 
-### Initialization
+### Core Workflow
 | Command | Description |
 |---------|-------------|
-| `/start-agent` | Check dependencies and show agent status |
-| `/status` | Show agent status and configuration |
+| `/new-project` | Clone a website into a static HTML project |
+| `/rebrand-project` | Replace all text + images with content from a PDP reference URL |
+| `/modify-project` | Make manual edits to an existing project |
 
 ### Project Management
 | Command | Description |
 |---------|-------------|
-| `/get-projects` | List all your WebForge projects |
-| `/new-project` | Create a new project |
-| `/modify-project` | Modify existing project |
-| `/delete-project` | Delete a project |
-
-### Development
-| Command | Description |
-|---------|-------------|
-| `/preview-project` | Start dev server for a project |
-
-### Information
-| Command | Description |
-|---------|-------------|
-| `/project-info` | Show project details |
-| `/help` | Show all commands with usage |
+| `/get-projects` | List all WebForge projects (GitHub + local) |
+| `/delete-project` | Delete a project from GitHub and/or local |
 
 ---
 
-## 🎯 Command Aliases
+## Typical Workflow
 
-| Alias | Command |
-|-------|---------|
-| `/start` | `/start-agent` |
-| `/list` | `/get-projects` |
-| `/create` | `/new-project` |
-| `/edit` | `/modify-project` |
-| `/remove` | `/delete-project` |
-| `/info` | `/project-info` |
-| `/preview` | `/preview-project` |
+```
+/new-project          Clone a reference website
+      |
+/rebrand-project      Swap all content with a PDP product
+      |
+/modify-project       Tweak anything if needed
+      |
+   Push to GitHub     Auto-pushed at end of rebrand
+```
+
+### Step 1: `/new-project`
+- Provide a reference URL to clone
+- Playwright extracts the full page (HTML, CSS, images, fonts)
+- Generates a static HTML project in `projects/`
+- Creates a private GitHub repo and pushes
+
+### Step 2: `/rebrand-project`
+- Pick an existing project + provide a PDP reference URL
+- Extracts all content (text, images) from the PDP page
+- Parallel agents replace every visible text string and image
+- Text from PDP is copied exactly; gaps filled by AI-generated content
+- Product images copied from PDP; lifestyle/hero/competitor images AI-generated
+- Stale sweep ensures zero old brand text remains
+- Auto-pushes to GitHub when done
+
+### Step 3: `/modify-project`
+- Select a project to edit
+- Describe what to change
+- Changes made directly and pushed to GitHub
 
 ---
 
-## 📖 Command Examples
+## How `/rebrand-project` Works
 
-### Create a New Project
-```bash
-# Interactive mode
-/new-project
+**Phase 1 - Setup:** Extract content + images from PDP URL using Playwright
 
-# With flags
-/new-project --name <project-name> --visibility private --url <url>
+**Phase 2 - Analysis (parallel):**
+- Agent 1: Read all PDP text (headings, features, testimonials, FAQs) + identify logo and product images
+- Agent 2: Audit project HTML, count lines, plan agent sections, extract text inventory + image map
 
-# Skip preview
-/new-project --name <project-name> --url <url> --no-preview
-```
+**Phase 3 - Rebrand (all parallel):**
+- N text agents (1 per ~300 lines) replace every visible string
+- 1 logo agent copies + resizes PDP logo
+- 2-3 image agents replace all images (PDP source or AI-generated)
 
-### List Projects
-```bash
-# Show GitHub projects
-/get-projects
+**Phase 4 - Stale Sweep:**
+- Grep for any remaining old brand names
+- Browser sweep to catch dynamically rendered text
+- Loop until zero matches
 
-# Show local projects only
-/get-projects --local
+**Phase 5 - Push:**
+- Screenshot verification
+- Commit and push to GitHub
+- Clean up temp files
 
-# Show both
-/get-projects --all
-```
-
-### Modify a Project
-```bash
-# Interactive mode
-/modify-project
-
-# Skip selection
-/modify-project --name <project-name>
-```
-
-### Delete a Project
-```bash
-# Interactive mode
-/delete-project
-
-# With flags
-/delete-project --name <project-name> --force
-```
-
-### Preview a Project
-```bash
-# Interactive mode
-/preview-project
-
-# With flags
-/preview-project --name <project-name> --port 3001
-```
+**Content sourcing:**
+| Content Type | Source |
+|-------------|--------|
+| Headlines, features, FAQs, testimonials | Copied from PDP |
+| Sections with no PDP match | AI writes fresh content |
+| Product photos, packaging | Copied from PDP |
+| Hero banners, lifestyle, competitor images | AI generated (Gemini API) |
+| Logo | Copied from PDP, resized to fit |
 
 ---
 
-## ⚙️ Requirements
+## Requirements
 
-### Must Install
+### Dependencies
 | Tool | Purpose | Install |
 |------|---------|---------|
 | **Git** | Version control | [git-scm.com](https://git-scm.com/) |
 | **GitHub CLI (`gh`)** | GitHub operations | `winget install GitHub.cli` (Windows) |
-| **Node.js** | Run websites | [nodejs.org](https://nodejs.org/) |
+| **Node.js** | Build + serve projects | [nodejs.org](https://nodejs.org/) |
+| **Python 3** | Playwright extraction | [python.org](https://python.org/) |
+| **Playwright** | Browser automation | `pip install playwright && playwright install` |
 
-### API Tokens Required
-
-| Token | Required | Purpose | Get It Here |
-|-------|----------|---------|-------------|
-| **GITHUB_TOKEN** | ✅ Yes | Create repos, push code | [github.com/settings/tokens](https://github.com/settings/tokens) |
-| **FAL_KEY** | ⚠️ Optional | AI image generation (Claude only) | [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys) |
-
-### Configure .env
+### API Tokens (.env)
 
 ```bash
-# Copy example file
-cp .env.example .env
-
-# Edit .env and add your tokens
-GITHUB_TOKEN=ghp_your_token_here
-FAL_KEY=fal_your_key_here  # Optional, for AI image generation
+GITHUB_TOKEN=ghp_your_token_here          # Required - GitHub repo operations
+GEMINI_API_KEY=your_key_here              # Required for AI image generation
 ```
 
 ---
 
-## 🏗️ How It Works
+## Project Structure
 
-### Project Structure
 ```
 webforge/
-├── .claude/skills/              # Claude skills
-│   ├── start-agent/
-│   ├── get-projects/
-│   ├── new-project/
-│   ├── modify-project/
-│   ├── delete-project/
-│   ├── preview-project/
-│   ├── project-info/
-│   ├── webforge-help/
-│   ├── webforge-status/
-│   ├── webforge-image-gen/      # Claude only - AI image gen
-│   └── github-manager/          # GitHub helper functions
-├── .codex/skills/               # Codex skills (same structure)
-├── templates/ai-cloner/         # Website cloning template
-├── projects/                    # Your forged projects
-└── .env                         # Your tokens
-```
+├── .claude/skills/          # All skills
+│   ├── new-project/         # Clone websites
+│   ├── rebrand-project/     # Rebrand with PDP content
+│   ├── modify-project/      # Edit projects
+│   ├── get-projects/        # List projects
+│   ├── delete-project/      # Delete projects
 
-### New Project Flow
-```
-/new-project
-↓
-Ask: Project name
-↓
-Ask: Visibility (public/private)
-↓
-Ask: Reference URL
-↓
-Create GitHub repo
-↓
-Clone website (using ai-cloner template)
-↓
-Copy only website source files (src, public, configs) to projects/
-↓
-Clean up ai-cloner template (reset for next use)
-↓
-Preview at localhost:3000
-↓
-Confirm push to GitHub
-↓
-✅ Done!
+│   ├── github-manager/      # GitHub helper functions
+
+│   └── perfect-web-clone/   # Advanced page extraction engine
+├── projects/                # Your forged projects
+├── .env                     # API tokens
+└── AGENT.md                 # This file
 ```
 
 ---
 
-## 🔑 GitHub Operations
+## GitHub Operations
 
-**ALWAYS use `gh` CLI** - never use the codex_apps connector:
+Always use `gh` CLI with token from `.env`:
 
 ```bash
-# Load token from .env
 export GH_TOKEN=$(grep GITHUB_TOKEN .env | cut -d'=' -f2)
-
-# Your operations
 gh repo list
 gh repo create ...
-gh repo clone ...
 ```
 
 ---
 
-## 📦 Project Metadata
+## Project Metadata
 
-Each project has a `FORGE.md` file with:
+Each project has a `FORGE.md` file:
 - Source URL
 - Forge date
 - WebForge version
 
-Example:
-```markdown
-# WebForge Metadata
-
-**Forged by:** WebForge
-**Source URL:** <url>
-**Forge Date:** <date>
-
----
-This project was automatically forged from a reference website using WebForge.
-```
+Projects are tagged with "Forged by WebForge" description on GitHub.
 
 ---
 
-## 🎯 Important Rules
+## Rules
 
-1. **All commands start with `/`**
-2. **Use lowercase project names with hyphens** (e.g., `<project-name>`)
-3. **Always preview before pushing** - preview URL is shown immediately
-4. **WebForge projects are tagged** with "Forged by WebForge" description
-5. **Use conventional commits** - `feat:`, `fix:`, `style:`
-
----
-
-## 🆘 Troubleshooting
-
-### "GitHub CLI is NOT installed"
-```bash
-# Windows
-winget install GitHub.cli
-
-# macOS
-brew install gh
-
-# Then authenticate
-gh auth login
-```
-
-### "GITHUB_TOKEN not configured"
-1. Get token at: https://github.com/settings/tokens
-2. Add to `.env`: `GITHUB_TOKEN=your_token_here`
-3. Run: `/start-agent`
-
-### "ai-cloner template not found"
-```bash
-# Run the setup script first:
-# Windows: setup.bat
-# Mac/Linux: chmod +x setup.sh && ./setup.sh
-```
+1. All commands start with `/`
+2. Use lowercase project names with hyphens (e.g., `my-project`)
+3. WebForge projects are tagged with "Forged by WebForge" description
+4. Use conventional commits: `feat:`, `fix:`, `style:`
+5. Every image slot uses a unique source — no duplicates
+6. Layout is never modified during rebrand — only content changes
 
 ---
 
-## 📚 Additional Resources
+## Skills Reference
 
-- **GitHub Tokens:** https://github.com/settings/tokens
-- **Fal.ai (Image Generation):** https://fal.ai/dashboard/keys
-- **GitHub CLI:** https://cli.github.com/
-- **Command Help:** Type `/help` or `/help --command <name>`
+| Skill | Purpose |
+|-------|---------|
+| **new-project** | Clone a website using Playwright extraction + HTML generation |
+| **rebrand-project** | Replace all text + images with PDP content (parallel agents) |
+| **modify-project** | Manual edits to existing projects |
+| **get-projects** | List projects from GitHub and/or local |
+| **delete-project** | Delete projects from GitHub and/or local |
 
----
+| **github-manager** | Internal GitHub helper functions |
 
-## 🎉 Ready to Forge?
-
-1. ✅ Run `/start-agent` to initialize
-2. ✅ Run `/new-project` to create your first project
-3. ✅ Run `/get-projects` to see all your projects
-
-**🔥 Let's forge something amazing!**
-
----
-
-## Skills Available
-
-### Core Commands (Claude & Codex)
-- **start-agent** - Initialize and verify dependencies
-- **get-projects** - List all projects
-- **new-project** - Create new project
-- **modify-project** - Modify existing project
-- **delete-project** - Delete a project
-- **preview-project** - Start dev server
-- **project-info** - Show project details
-- **webforge-help** - Show command help
-- **webforge-status** - Show agent status
-- **github-manager** - GitHub helper functions
-
-### Image Generation (Claude Only)
-- **webforge-image-gen** - AI image generation documentation
-
-**For detailed implementation, see:**
-- `.claude/skills/<command-name>/SKILL.md` (Claude)
-- `.codex/skills/<command-name>/SKILL.md` (Codex)
+| **perfect-web-clone** | Advanced extraction engine (used by new-project) |

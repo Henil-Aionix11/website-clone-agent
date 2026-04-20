@@ -1,448 +1,174 @@
-# 🔥 WebForge
+# WebForge
 
-**AI-driven agent that forges websites from references** - Works on Claude Code and Codex/Cursor with NO hardcoded code!
+AI agent that clones websites, rebrands them with product content, and manages them on GitHub.
 
-<!-- Agent Instructions -->
 @AGENT.md
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
-### Prerequisites (Install Once)
+### Prerequisites
 
-| Tool | Required For | Install |
-|------|--------------|---------|
-| **Claude Desktop/Code** | Run WebForge | [Download](https://claude.ai/download) |
+| Tool | Purpose | Install |
+|------|---------|---------|
+| **Claude Code** | Run WebForge | [Download](https://claude.ai/download) |
+| **Git** | Version control | [git-scm.com](https://git-scm.com/) |
 | **GitHub CLI (`gh`)** | GitHub operations | `winget install GitHub.cli` (Windows) |
-| **Git** | Clone repository | [git-scm.com](https://git-scm.com/) |
-| **Node.js** (optional) | Run cloned websites | [nodejs.org](https://nodejs.org/) |
+| **Node.js** | HTML generation + preview | [nodejs.org](https://nodejs.org/) |
+| **Python 3** | Playwright extraction + image generation | [python.org](https://python.org/) |
 
-### Setup (2 Minutes)
+### Setup
 
-**Windows:**
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/webforge.git
-cd webforge
-
-# Run setup (clones ai-cloner template)
+# Windows
 setup.bat
 
-# Edit .env and add your tokens
-notepad .env
-```
-
-**Mac/Linux:**
-```bash
-# Clone the repository
-git clone https://github.com/your-org/webforge.git
-cd webforge
-
-# Run setup (clones ai-cloner template)
+# Mac/Linux
 chmod +x setup.sh && ./setup.sh
-
-# Edit .env and add your tokens
-nano .env
 ```
 
 ### Add Your Tokens
 
-Edit `.env` and add:
+Edit `.env`:
 
 ```bash
-# Required: Get from https://github.com/settings/tokens (scopes: repo, workflow)
+# Required — GitHub repo operations
 GITHUB_TOKEN=ghp_your_token_here
 
-# Optional: For AI image generation (Claude only) - Get from https://fal.ai/dashboard/keys
-FAL_KEY=fal_your_key_here
+# Required — AI image generation
+GEMINI_API_KEY=your_key_here
 ```
 
-### Start WebForge
+### Start
 
-1. Open **Claude Desktop** or **Claude Code**
-2. Navigate to this folder
-3. Type: `/start-agent`
+```
+Open Claude Code → Navigate to this folder → Type: /new-project
+```
 
 ---
 
-## 🚀 Command-Based Interface
-
-WebForge uses a command-based system. All commands start with `/`.
-
-### Available Commands
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/start-agent` | Initialize agent, verify dependencies |
-| `/get-projects` | List all your WebForge projects |
-| `/new-project` | Create a new project |
-| `/modify-project` | Modify existing project |
+| `/new-project` | Clone a website into a static HTML project |
+| `/rebrand-project` | Replace all text + images with PDP product content |
+| `/modify-project` | Make manual edits to a project |
+| `/get-projects` | List all WebForge projects |
 | `/delete-project` | Delete a project |
-| `/preview-project` | Start dev server for a project |
-| `/project-info` | Show project details |
-| `/status` | Show agent status |
-| `/help` | Show all commands with usage |
-
-### Command Aliases
-
-| Alias | Command |
-|-------|---------|
-| `/start` | `/start-agent` |
-| `/list` | `/get-projects` |
-| `/create` | `/new-project` |
-| `/edit` | `/modify-project` |
-| `/remove` | `/delete-project` |
-| `/info` | `/project-info` |
-| `/preview` | `/preview-project` |
 
 ---
 
-## 🎯 What WebForge Does
+## Workflow
 
-- 🌐 **Forge websites** - Clone any website using ai-website-cloner-template
-- 📦 **GitHub integration** - Create repos, push code, manage everything
-- 🔄 **Auto-sync** - Smart commits and automatic pushes
-- ✏️ **Make changes** - Edit projects and keep them in sync
+```
+/new-project          Clone a reference website
+      |
+/rebrand-project      Swap all content with a PDP product
+      |
+/modify-project       Tweak anything if needed
+      |
+   Pushed to GitHub   Auto-pushed at end of each step
+```
+
+### `/new-project` — Clone a Website
+1. Provide a reference URL
+2. Playwright extracts the full page (HTML, CSS, images, fonts)
+3. Generates a static HTML project in `projects/`
+4. Creates a private GitHub repo and pushes
+
+### `/rebrand-project` — Replace All Content
+1. Pick an existing project + provide a PDP reference URL
+2. Extracts all text + images from the PDP page
+3. Parallel agents replace every visible text string and image
+4. Text from PDP copied exactly; gaps filled by AI
+5. Product images from PDP; hero/lifestyle/competitor images AI-generated
+6. Stale sweep ensures zero old text remains
+7. Auto-pushes to GitHub
+
+### `/modify-project` — Edit a Project
+1. Select a project and describe what to change
+2. Changes applied directly and pushed
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 webforge/
-├── .claude/
-│   └── skills/
-│       ├── start-agent/           # Initialize and verify dependencies
-│       ├── get-projects/          # List all projects
-│       ├── new-project/           # Create new project
-│       ├── modify-project/        # Modify existing project
-│       ├── delete-project/        # Delete a project
-│       ├── preview-project/       # Start dev server
-│       ├── project-info/          # Show project details
-│       ├── webforge-help/         # Show command help
-│       ├── webforge-status/       # Show agent status
-│       ├── webforge-image-gen/    # (Claude only) AI image generation
-│       └── github-manager/        # GitHub helper functions
-│
-├── .codex/
-│   └── skills/                    # Same structure for Codex
-│
-├── templates/
-│   └── ai-cloner/                 # Website cloning template (auto-cloned)
-│
-├── projects/                       # Your forged projects
-│
-├── .env.example                    # Example environment variables
-├── .gitignore
-├── AGENT.md                        # Agent documentation
-├── README.md
-├── setup.bat                       # Windows setup script
-└── setup.sh                        # Mac/Linux setup script
+├── .claude/skills/          # All skills
+│   ├── new-project/         # Clone websites
+│   ├── rebrand-project/     # Rebrand with PDP content
+│   ├── modify-project/      # Edit projects
+│   ├── get-projects/        # List projects
+│   ├── delete-project/      # Delete projects
+│   ├── github-manager/      # GitHub reference patterns
+│   ├── humanizer/           # AI writing quality rules
+│   └── perfect-web-clone/   # Playwright extraction engine
+├── projects/                # Your forged projects
+├── .env                     # API tokens
+├── AGENT.md                 # Agent instructions
+├── setup.bat                # Windows setup
+└── setup.sh                 # Mac/Linux setup
 ```
-
-**Both platforms use the SAME command-based approach!**
 
 ---
 
-## 🚀 Usage Examples
+## Authentication
 
-### Initialize WebForge
-```
-/start-agent
-```
+### GitHub Token
+1. Go to: https://github.com/settings/tokens
+2. Generate new token (classic) with scopes: `repo`, `delete_repo`
+3. Add to `.env`: `GITHUB_TOKEN=ghp_your_token`
 
-### Create a New Project
-```bash
-# Interactive mode - will prompt for name, visibility, and URL
+### Gemini API Key
+1. Get key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Add to `.env`: `GEMINI_API_KEY=your_key`
+
+---
+
+## Usage Examples
+
+### Clone + Rebrand a Website
+```
 /new-project
+> Project name: my-product-page
+> Reference URL: https://example.com/some-product
 
-# With flags - skip prompts
-/new-project --name <project-name> --visibility private --url <url>
-
-# Skip preview
-/new-project --name <project-name> --url <url> --no-preview
+/rebrand-project
+> Select project: my-product-page
+> PDP URL: https://newbrand.com/products/their-product
 ```
 
-### List Projects
-```bash
-# Show all GitHub projects
-/get-projects
-
-# Show local projects only
-/get-projects --local
-
-# Show both local and remote
-/get-projects --all
+### List and Manage Projects
+```
+/get-projects           # See all GitHub projects
+/delete-project         # Interactive deletion (removes GitHub + local)
 ```
 
 ### Modify a Project
-```bash
-# Interactive mode
+```
 /modify-project
-
-# Skip selection
-/modify-project --name <project-name>
-```
-
-### Delete a Project
-```bash
-# Interactive mode - shows all GitHub projects
-/delete-project
-
-# With flags - skip confirmation
-/delete-project --name <project-name> --force
-```
-
-### Preview a Project
-```bash
-# Interactive mode
-/preview-project
-
-# With custom port
-/preview-project --name <project-name> --port 3001
-```
-
-### Get Project Info
-```bash
-/project-info --name <project-name>
-```
-
-### Get Help
-```bash
-# Show all commands
-/help
-
-# Show help for specific command
-/help --command new-project
+> Select project: my-product-page
+> What to change: Update the hero heading to "New Title Here"
 ```
 
 ---
 
-## 🔐 Authentication
+## How It Works
 
-WebForge needs a **GitHub Personal Access Token** to:
-- Create repositories
-- Clone websites
-- Push code to GitHub
+WebForge uses AI skill files — no hardcoded logic:
 
-### Get Your Token
+1. You type a command (e.g., `/new-project`)
+2. Claude reads the skill file (`.claude/skills/new-project/SKILL.md`)
+3. Claude executes the steps using tools (Bash, Edit, MCP)
+4. Results pushed to GitHub automatically
 
-1. Go to: https://github.com/settings/tokens
-2. Click "Generate new token" → "Generate new token (classic)"
-3. Select scopes: `repo`, `workflow`
-4. Generate and copy the token
-
-### Add Token to WebForge
-
-**Option 1: .env file (Recommended)**
-```bash
-# Copy example file
-cp .env.example .env
-
-# Edit .env and add your token
-GITHUB_TOKEN=ghp_your_token_here
-```
-
-**Option 2: Provide when prompted**
-- WebForge will ask for your token on first use
-- You can choose to save it to .env for future use
+Each skill is a markdown file with step-by-step instructions that Claude follows.
 
 ---
 
-## 💬 Example Conversations
-
-### First Time User
-```
-You: /start-agent
-
-WebForge: 🔥 WebForge Agent Status
-          ✅ Git: installed (v2.43.0)
-          ✅ GitHub CLI: installed (v2.52.0)
-          ✅ GITHUB_TOKEN: configured
-          ✅ ai-cloner: ready
-          📊 GitHub Projects: 0
-
-          🚀 All systems ready! Type /help to see all commands.
-
-You: /new-project
-
-WebForge: 🔨 Project name: _
-You: <project-name>
-
-WebForge: 🔒 Visibility (public/private): _
-You: private
-
-WebForge: 🌐 Reference URL: _
-You: <url>
-
-WebForge: ✅ Creating repository...
-          ✅ Repository created: github.com/<user>/<project-name>
-          🔨 Cloning <url>...
-          ✅ Clone complete!
-          ✅ Project created: projects/<project-name>
-
-          🔥 Preview running at: http://localhost:3000
-          Open the URL above in your browser to see the forged website.
-
-          📤 Ready to push to GitHub? Say 'push' or 'yes' to continue.
-
-You: push
-
-WebForge: ✅ Pushed to GitHub!
-
-          🔥 Project forged successfully!
-
-          ┌─────────────────────────────────────┐
-          │ 📦 Project: <project-name>          │
-          │ 🔗 GitHub: github.com/<user>/<project-name> │
-          │ 🌐 Forged from: <url>               │
-          └─────────────────────────────────────┘
-```
-
-### Making Changes
-```
-You: /modify-project
-
-WebForge: 🔥 Available Projects
-          1. <project-name> ● Local
-
-          📍 Select project (name/number): _
-
-You: 1
-
-WebForge: 📍 Working on: <project-name>
-          🔗 GitHub: https://github.com/<user>/<project-name>
-
-          💬 What changes would you like to make?
-
-You: Change the hero to dark blue
-
-WebForge: 🔨 Applying changes...
-          🔥 Preview running at: http://localhost:3000
-
-          📤 Ready to push to GitHub? Say 'push' or 'yes' to continue.
-
-You: push
-
-WebForge: 📝 Commit message (or press Enter for default):
-          Default: 'feat: update website'
-You: style: change hero to dark blue
-
-WebForge: ✅ Changes pushed to GitHub!
-          🔗 View: https://github.com/<user>/<project-name>/commits
-```
-
----
-
-## 🎨 Why WebForge?
-
-| Traditional Code | WebForge AI-Driven |
-|-----------------|-------------------|
-| Hardcoded functions | AI interprets intent |
-| Limited variations | Handles anything |
-| Break on edge cases | AI adapts |
-| Learn commands | Natural language |
-
----
-
-## 🛠️ How It Works
-
-WebForge uses a **command-based system** with AI instructions:
-
-1. **You type a command** → `/new-project --name <project-name> --url <url>`
-2. **AI reads command handler** → Reads `.claude/skills/<command>/SKILL.md`
-3. **AI executes the steps** → Creates repo, clones site, pushes to GitHub
-4. **No hardcoded code** → AI adapts to any request via skill files
-
----
-
-## 📦 Requirements
-
-### ✅ Included in Repository (No Install Needed)
-
-- All WebForge skills and instructions
-- GitHub management logic
-- Documentation
-- **ai-cloner template** - Auto-cloned on setup (~200MB)
-
-### ⚠️ Must Install Manually
-
-| Tool | Why | How to Install |
-|------|-----|----------------|
-| **Claude Desktop/Code** | Required to run the agent | [claude.ai/download](https://claude.ai/download) |
-| **GitHub CLI (`gh`)** | For GitHub operations | `winget install GitHub.cli` (Windows) |
-| **Git** | To clone the repo | [git-scm.com](https://git-scm.com/) |
-| **Node.js** | To run forged websites | [nodejs.org](https://nodejs.org/) (optional) |
-
-### 🔑 API Tokens Required
-
-| Token | Required | Purpose | Get It Here |
-|-------|----------|---------|-------------|
-| **GITHUB_TOKEN** | ✅ Yes | Create repos, push code | [github.com/settings/tokens](https://github.com/settings/tokens) |
-| **FAL_KEY** | ⚠️ Optional | AI image generation (Claude) | [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys) |
-
-> 💡 Run `setup.bat` (Windows) or `./setup.sh` (Mac/Linux) to verify everything is configured!
-
----
-
-## 🔄 Updating
-
-To get the latest updates:
-
-```bash
-git pull origin main
-cd templates/ai-cloner
-git pull origin main
-npm install
-```
-
----
-
-## 🤝 Contributing
-
-WebForge works through **AI instructions**, not code. To add capabilities:
-
-1. Edit `.claude/skills/<command-name>/SKILL.md`
-2. Edit `.codex/skills/<command-name>/SKILL.md` (keep them in sync!)
-3. Test by chatting with Claude
-
----
-
-## 📄 License
+## License
 
 MIT
-
----
-
-## 🎉 Ready to Forge?
-
-### How to Access WebForge
-
-After setup, use the command-based interface:
-
-#### Method 1: Initialize and Start
-```
-Open Claude → Navigate to this folder → Type: /start-agent
-```
-
-#### Method 2: Create Your First Project
-```
-/new-project --name <project-name> --url <url>
-```
-
-#### Method 3: See All Commands
-```
-/help
-```
-
-### Quick Checklist
-
-1. ✅ Clone this repo
-2. ✅ Run `setup.bat` or `./setup.sh`
-3. ✅ Add tokens to `.env` file
-4. ✅ Open Claude Desktop/Code in this folder
-5. ✅ Type: `/start-agent`
-6. ✅ Type: `/new-project` to create your first project
-
-**🔥 Let's forge something amazing!**

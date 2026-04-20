@@ -2,12 +2,12 @@
 name: delete-project
 description: Delete a WebForge project from GitHub and/or local
 user-invocable: true
-argument-hint: "--name <name> --github-only --local-only --force"
+argument-hint: "--name <name> --force"
 ---
 
 # /delete-project
 
-Delete a WebForge project from GitHub repository and/or local directory.
+Delete a WebForge project from GitHub and local.
 
 ## What It Does
 
@@ -15,39 +15,14 @@ Delete a WebForge project from GitHub repository and/or local directory.
 2. **Ask to select project to delete**
 3. **Confirm deletion** (unless --force)
 4. **Delete from GitHub** (gh repo delete)
-5. **Delete from local** (if exists in projects/)
+5. **Delete local copy** (if exists in projects/)
 
 ## Flags
 
 | Flag | Description |
 |------|-------------|
 | `--name <name>` | Skip project selection |
-| `--github-only` | Delete GitHub repo only |
-| `--local-only` | Delete local folder only |
 | `--force` | Skip confirmation |
-
-## Interactive Flow
-
-```
-/delete-project
-↓
-🔥 WebForge Projects (GitHub)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1. <project-name>    (Private) ● Local exists
-  2. <project-name>    (Public)  ○ Not cloned
-  3. <project-name>    (Private) ● Local exists
-↓
-🗑️  Which project to delete? (name/number): _
-↓
-⚠️  Deleting '<project-name>' will remove:
-   - GitHub repository
-   - Local folder: projects/<project-name>
-↓
-🔥 Confirm deletion? (yes/no): _
-↓
-✅ Project deleted from GitHub
-✅ Local folder deleted
-```
 
 ## Implementation
 
@@ -55,8 +30,6 @@ Delete a WebForge project from GitHub repository and/or local directory.
 
 ```bash
 PROJECT_NAME=""
-GITHUB_ONLY=false
-LOCAL_ONLY=false
 FORCE=false
 
 for arg in "$@"; do
@@ -68,12 +41,6 @@ for arg in "$@"; do
             shift
             PROJECT_NAME="$1"
             ;;
-        --github-only)
-            GITHUB_ONLY=true
-            ;;
-        --local-only)
-            LOCAL_ONLY=true
-            ;;
         --force)
             FORCE=true
             ;;
@@ -81,11 +48,12 @@ for arg in "$@"; do
 done
 ```
 
-### Step 2: Load Token and Get Username
+### Step 2: Setup GitHub Auth
 
 ```bash
-# Use github-manager skill to get username
-GITHUB_USER=$(get_github_username)
+AGENT_DIR="$(pwd)"
+export GH_TOKEN=$(grep GITHUB_TOKEN "$AGENT_DIR/.env" | cut -d'=' -f2 | tr -d ' ')
+GITHUB_USER=$(gh api user --jq '.login')
 ```
 
 ### Step 3: List GitHub Projects
@@ -96,42 +64,18 @@ if [ -z "$PROJECT_NAME" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    # Get projects from GitHub with index using github-manager
-    declare -A projects
-    index=1
-
-    get_webforge_repos_list | while read -r line; do
-        repo_name=$(echo "$line" | awk '{print $1}')
-        visibility=$(echo "$line" | grep -oE 'Public|Private' || echo "Unknown")
-
-        # Check if local exists
-        if [ -d "projects/$repo_name" ]; then
-            local_status="● Local exists"
-        else
-            local_status="○ Not cloned"
-        fi
-
-        echo "  $index. $repo_name    ($visibility) $local_status"
-        projects["$index"]="$repo_name"
-        index=$((index + 1))
+    gh repo list --limit 100 --json name,visibility,description \
+      --jq '.[] | select(.description | test("Forged by WebForge"; "i")) | "\(.name)\t\(.visibility)"' | while IFS=$'\t' read -r repo_name visibility; do
+        echo "  • $repo_name    ($visibility)"
     done
 
     echo ""
-    echo "🗑️  Which project to delete? (name/number): "
-    read selection
-
-    # Check if number or name
-    if echo "$selection" | grep -qE '^[0-9]+$'; then
-        # It's a number
-        PROJECT_NAME="${projects[$selection]}"
-    else
-        # It's a name
-        PROJECT_NAME="$selection"
-    fi
+    echo "🗑️  Which project to delete? (name): "
+    read PROJECT_NAME
 fi
 
-# Validate project exists using github-manager
-if ! project_exists_on_github "$PROJECT_NAME"; then
+# Validate project exists on GitHub
+if ! gh repo view "$GITHUB_USER/$PROJECT_NAME" &>/dev/null; then
     echo "❌ Project '$PROJECT_NAME' not found on GitHub"
     exit 1
 fi
@@ -143,15 +87,10 @@ fi
 if [ "$FORCE" != "true" ]; then
     echo ""
     echo "⚠️  Deleting '$PROJECT_NAME' will remove:"
-
-    if [ "$GITHUB_ONLY" != "true" ]; then
-        echo "   - GitHub repository"
-    fi
-
-    if [ "$LOCAL_ONLY" != "true" ] && [ -d "projects/$PROJECT_NAME" ]; then
+    echo "   - GitHub repository: $GITHUB_USER/$PROJECT_NAME"
+    if [ -d "projects/$PROJECT_NAME" ]; then
         echo "   - Local folder: projects/$PROJECT_NAME"
     fi
-
     echo ""
     echo "🔥 Confirm deletion? (yes/no): "
     read confirm
@@ -163,21 +102,15 @@ if [ "$FORCE" != "true" ]; then
 fi
 ```
 
-### Step 5: Delete from GitHub
+### Step 5: Delete from GitHub + Local
 
 ```bash
-if [ "$LOCAL_ONLY" != "true" ]; then
-    echo ""
-    echo "🗑️  Deleting GitHub repository..."
-    delete_github_repo "$PROJECT_NAME"
-    echo "✅ Project deleted from GitHub"
-fi
-```
+echo ""
+echo "🗑️  Deleting GitHub repository..."
+gh repo delete "$GITHUB_USER/$PROJECT_NAME" --yes
+echo "✅ Project deleted from GitHub"
 
-### Step 6: Delete from Local
-
-```bash
-if [ "$GITHUB_ONLY" != "true" ] && [ -d "projects/$PROJECT_NAME" ]; then
+if [ -d "projects/$PROJECT_NAME" ]; then
     echo "🗑️  Deleting local folder..."
     rm -rf "projects/$PROJECT_NAME"
     echo "✅ Local folder deleted"
@@ -194,15 +127,14 @@ echo "🔥 Deletion complete!"
 
 🔥 WebForge Projects (GitHub)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1. <project-name>    (Private) ● Local exists
-  2. <project-name>    (Public)  ○ Not cloned
-  3. <project-name>    (Private) ● Local exists
+  • packing-cube    (PRIVATE)
+  • Farmer-trick    (PRIVATE)
 
-🗑️  Which project to delete? (name/number): <project-name>
+🗑️  Which project to delete? (name): packing-cube
 
-⚠️  Deleting '<project-name>' will remove:
-   - GitHub repository
-   - Local folder: projects/<project-name>
+⚠️  Deleting 'packing-cube' will remove:
+   - GitHub repository: user/packing-cube
+   - Local folder: projects/packing-cube
 
 🔥 Confirm deletion? (yes/no): yes
 

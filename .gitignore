@@ -17,6 +17,7 @@
 /build
 
 .venv/
+venv/
 
 # misc
 .DS_Store
@@ -43,6 +44,8 @@ next-env.d.ts
 /projects/
 /templates/ai-cloner/
 /skills/fal/
+
+projects/
 
 # Root-level workspace (cloned websites)
 /src/
